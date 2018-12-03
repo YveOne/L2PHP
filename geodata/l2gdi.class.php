@@ -32,6 +32,9 @@ class L2GeoDataImage
     {
         $this->raw = imagecreatetruecolor(L2GDI_IMG_SIZE, L2GDI_IMG_SIZE);
         $this->out = imagecreatetruecolor(L2GDI_IMG_SIZE, L2GDI_IMG_SIZE);
+        imagealphablending($this->out, false);
+        imagesavealpha($this->out, true);
+
         while (($block = $gdr->readBlock()) !== false)
         {
 
