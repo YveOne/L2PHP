@@ -99,7 +99,7 @@ class L2GeoDataImage
         ];
     }
 
-    public function heightmap($showNSWE)
+    public function heightmap($showNSWE=false)
     {
 
         list($aMin, $rMin, $gMin, $bMin) = self::parseColorInt(hexdec(L2GDI_COLOR_MIN));
