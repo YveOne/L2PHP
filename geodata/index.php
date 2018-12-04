@@ -23,7 +23,7 @@ use L2PHP\L2GeoDataImage as L2GeoDataImage;
 
 // 22_22 (giran) = 0-4 levels
 // 23_18 (toi) = 0-17 levels
-$mapId = '23_18';
+$mapId = '22_22';
 $mapFile = "{$mapId}.l2j";
 $mapLevel = 0;
 
@@ -31,38 +31,6 @@ $L2GDR = new L2GeoDataReader($mapFile);
 $L2GDI = new L2GeoDataImage($L2GDR, $mapLevel);
 $L2GDI->heightmap(true);
 $L2GDI->output();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

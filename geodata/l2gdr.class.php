@@ -2,7 +2,7 @@
 
 /* Class to read l2j geodata files
  *
- * Version: 1.0
+ * Version: 1.1
  * Author: Yvonne P. (contact[at]yveone[dot]de)
  *
 **/
@@ -16,9 +16,9 @@ define('L2GDR_MULTI',   2);
 class L2GeoDataReader
 {
     private $f = null;
-    private $blockI = -1;
-    public $blockX = -1;
-    public $blockY = -1;
+    private $blockI = 0;
+    public $blockX = 0;
+    public $blockY = 0;
 
     public function __construct($path)
     {
@@ -27,8 +27,7 @@ class L2GeoDataReader
 
     public function readBlock()
     {
-        $this->blockI += 1;
-        if ($this->blockI === 65536)
+        if ($this->blockI >= 65536)
         {
             $this->close();
         }
@@ -39,8 +38,9 @@ class L2GeoDataReader
 
         $this->blockX = (int)($this->blockI / 256);
         $this->blockY = $this->blockI % 256;
+        $this->blockI += 1;
 
-        $blockType = $this->readUnsignedInt8();
+        $blockType = $this->readU8();
         switch ($blockType)
         {
             case L2GDR_FLAT:
@@ -58,7 +58,8 @@ class L2GeoDataReader
 
     private function readFlatBlock()
     {
-        return $this->readCell();
+        $int = $this->readU16();
+        return [self::int2z($int), 0xF];
     }
 
     private function readComplexBlock()
@@ -66,7 +67,8 @@ class L2GeoDataReader
         $blockData = [];
         for ($cellI = 0; $cellI < 64; $cellI += 1)
         {
-            $blockData[] = $this->readCell(2);
+            $int = $this->readU16();
+            $blockData[] = [self::int2z($int)/2, self::int2nswe($int)];
         }
         return $blockData;
     }
@@ -78,11 +80,12 @@ class L2GeoDataReader
         {
             for ($cellY = 0; $cellY < 8; $cellY += 1)
             {
-                $levels = $this->readUnsignedInt8();
+                $levels = $this->readU8();
                 $levelData = [];
                 for ($l = 0; $l < $levels; $l += 1)
                 {
-                    $levelData[] = $this->readCell(2);
+                    $int = $this->readU16();
+                    $levelData[] = [self::int2z($int)/2, self::int2nswe($int)];
                 }
                 $blockData[] = $levelData;
             }
@@ -90,13 +93,17 @@ class L2GeoDataReader
         return $blockData;
     }
 
-    private function readCell($div=1)
-    {
-        $int = $this->readSignedInt16();
-        $nswe = $int & 0xF;
-        $coordZ = $int >> 4 << 4;
-        return [$coordZ/$div, $nswe];
-    }
+
+
+
+
+
+
+
+
+
+
+
 
     public function open($path)
     {
@@ -119,15 +126,39 @@ class L2GeoDataReader
         }
     }
 
-    private function readSignedInt16()
+    //private function readSignedInt16()
+    //{
+    //    $int = ord(fgetc($this->f)) + (ord(fgetc($this->f)) << 8);
+    //    //return $int - 32768;
+    //    return ($int >= 32768) ? $int - 65536 : $int;
+    //}
+
+    private function readU16()
     {
-        $int = ord(fgetc($this->f)) + (ord(fgetc($this->f)) << 8);
-        return ($int >= 32768) ? $int - 65536 : $int;
+        return ord(fgetc($this->f)) + (ord(fgetc($this->f)) << 8);
     }
 
-    private function readUnsignedInt8()
+    private function readU8()
     {
         return ord(fgetc($this->f));
+    }
+
+
+
+
+
+
+
+    private static function int2z($int)
+    {
+        $z = $int & 0xFFF0;
+        if ($z >= 32768) $z -= 65536;
+        return $z;
+    }
+
+    private static function int2nswe($int)
+    {
+        return $int & 0x000F;
     }
 
     public static function nswe($nswe)

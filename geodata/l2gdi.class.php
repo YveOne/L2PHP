@@ -2,7 +2,7 @@
 
 /* Class to view l2j geodata files
  *
- * Version: 1.0
+ * Version: 1.1
  * Author: Yvonne P. (contact[at]yveone[dot]de)
  *
 **/
@@ -25,13 +25,14 @@ class L2GeoDataImage
     private $cellOffsetX;
     private $cellOffsetY;
 
-    private $zMin = 32767;
-    private $zMax = -32768;
+    private $zMin = 65536;
+    private $zMax = -0;
 
     public function __construct(&$gdr, $level=0)
     {
         $this->raw = imagecreatetruecolor(L2GDI_IMG_SIZE, L2GDI_IMG_SIZE);
         $this->out = imagecreatetruecolor(L2GDI_IMG_SIZE, L2GDI_IMG_SIZE);
+        imagefill($this->raw, 0, 0, 15);
         imagealphablending($this->out, false);
         imagesavealpha($this->out, true);
 
@@ -50,7 +51,6 @@ class L2GeoDataImage
                 case L2GDR_FLAT:
                     if (!$level)
                     {
-                        $blockData[1] = 15;
                         for ($cellI = 0; $cellI < 64; $cellI += 1)
                         {
                             $this->drawRawCell($cellI, $blockData);
@@ -86,12 +86,27 @@ class L2GeoDataImage
     {
         $px = $this->cellOffsetX + (int)($cellI/8);
         $py = $this->cellOffsetY +       $cellI%8;
+        $z = $cellData[0]+32768;
+        if ($z < $this->zMin) $this->zMin = $z;
+        if ($z > $this->zMax) $this->zMax = $z;
+        imagesetpixel($this->raw, $px, $py, ($z&0xFFF0)+$cellData[1]);
+    }
+/*
+    private function drawRawCell($cellI, $cellData)
+    {
+        $px = $this->cellOffsetX + (int)($cellI/8);
+        $py = $this->cellOffsetY +       $cellI%8;
+        //$z = $cellData[0];
+        //if ($z < $this->zMin) $this->zMin = $z;
+        //if ($z > $this->zMax) $this->zMax = $z;
+        //imagesetpixel($this->raw, $px, $py, (($z+32768)<<8)+$cellData[1]);
         $z = $cellData[0];
         if ($z < $this->zMin) $this->zMin = $z;
         if ($z > $this->zMax) $this->zMax = $z;
-        imagesetpixel($this->raw, $px, $py, (($z+32768)<<8)+$cellData[1]);
+        $int = (($cellData[0]+32768)&0xFFF0)+$cellData[1];
+        imagesetpixel($this->raw, $px, $py, $int);
     }
-
+*/
     private static function parseColorInt($int)
     {
         return [
@@ -101,6 +116,11 @@ class L2GeoDataImage
             ($int      ) & 0xFF
         ];
     }
+
+
+
+
+
 
     public function heightmap($showNSWE=false)
     {
@@ -115,92 +135,71 @@ class L2GeoDataImage
         $zMin = $this->zMin;
         $zMax = $this->zMax;
         $zRange = $zMax - $zMin;
-        $zMulti = 1 / $zRange;
-        if ($showNSWE)
+        if ($zRange)
         {
-
-            list($aMinBlock, $rMinBlock, $gMinBlock, $bMinBlock) = self::parseColorInt(hexdec(L2GDI_BLOCK_MIN));
-            list($aMaxBlock, $rMaxBlock, $gMaxBlock, $bMaxBlock) = self::parseColorInt(hexdec(L2GDI_BLOCK_MAX));
-            $aRangeBlock = $aMaxBlock - $aMinBlock;
-            $rRangeBlock = $rMaxBlock - $rMinBlock;
-            $gRangeBlock = $gMaxBlock - $gMinBlock;
-            $bRangeBlock = $bMaxBlock - $bMinBlock;
-
-            for ($x = 0; $x < L2GDI_IMG_SIZE; $x += 1)
+            $zMulti = 1 / $zRange;
+            if ($showNSWE)
             {
-                for ($y = 0; $y < L2GDI_IMG_SIZE; $y += 1)
-                {
-                    $cRaw = imagecolorat($this->raw, $x, $y);
-                    $nswe = $cRaw & 0xFF;
-                    $zPos = (($cRaw >> 8) & 0xFFFF) - 32768;
-                    $p = $zMulti * ($zPos - $zMin);
-                    if ($nswe < 15)
-                    {
-                        $a = (int)($aRangeBlock*$p) + $aMinBlock;
-                        $r = (int)($rRangeBlock*$p) + $rMinBlock;
-                        $g = (int)($gRangeBlock*$p) + $gMinBlock;
-                        $b = (int)($bRangeBlock*$p) + $bMinBlock;
-                    }
-                    else
-                    {
-                        $a = (int)($aRange*$p) + $aMin;
-                        $r = (int)($rRange*$p) + $rMin;
-                        $g = (int)($gRange*$p) + $gMin;
-                        $b = (int)($bRange*$p) + $bMin;
-                    }
-                    $c =  ($a << 24) + ($r << 16) + ($g << 8) + ($b);
-                    imagesetpixel($this->out, $x, $y, $c);
-                }
-            }
-        }
-        else
-        {
-            for ($x = 0; $x < L2GDI_IMG_SIZE; $x += 1)
-            {
-                for ($y = 0; $y < L2GDI_IMG_SIZE; $y += 1)
-                {
-                    $cRaw = imagecolorat($this->raw, $x, $y);
-                    $zPos = (($cRaw >> 8) & 0xFFFF) - 32768;
-                    //$nswe = $cRaw & 0xFF;
-                    $p = $zMulti * ($zPos - $zMin);
-                    $a = (int)($aRange*$p) + $aMin;
-                    $r = (int)($rRange*$p) + $rMin;
-                    $g = (int)($gRange*$p) + $gMin;
-                    $b = (int)($bRange*$p) + $bMin;
-                    $c = ($a << 24) + ($r << 16) + ($g << 8) + ($b);
-                    imagesetpixel($this->out, $x, $y, $c);
-                }
-            }
-        }
-/*
-                $this->out = imagecreatetruecolor(L2GDI_IMG_SIZE*3, L2GDI_IMG_SIZE*3);
-                $warnColor = hexdec(L2GDI_COLOR_RED);
+
+                list($aMinBlock, $rMinBlock, $gMinBlock, $bMinBlock) = self::parseColorInt(hexdec(L2GDI_BLOCK_MIN));
+                list($aMaxBlock, $rMaxBlock, $gMaxBlock, $bMaxBlock) = self::parseColorInt(hexdec(L2GDI_BLOCK_MAX));
+                $aRangeBlock = $aMaxBlock - $aMinBlock;
+                $rRangeBlock = $rMaxBlock - $rMinBlock;
+                $gRangeBlock = $gMaxBlock - $gMinBlock;
+                $bRangeBlock = $bMaxBlock - $bMinBlock;
+
                 for ($x = 0; $x < L2GDI_IMG_SIZE; $x += 1)
                 {
-                    $_x = $x * 3;
                     for ($y = 0; $y < L2GDI_IMG_SIZE; $y += 1)
                     {
-                        $_y = $y * 3;
-
                         $cRaw = imagecolorat($this->raw, $x, $y);
-                        $zPos = (($cRaw >> 8) & 0xFFFF) - 32768;
-                        $nswe = $cRaw & 0xFF;
-                        $p = $zMulti * ($zPos - $zMin);
-                        $a = (int)(($aMax-$aMin)*$p) + $aMin;
-                        $r = (int)(($rMax-$rMin)*$p) + $rMin;
-                        $g = (int)(($gMax-$gMin)*$p) + $gMin;
-                        $b = (int)(($bMax-$bMin)*$p) + $bMin;
-                        $c = ($a << 24) + ($r << 16) + ($g << 8) + ($b);
-
-                        imagefilledrectangle($this->out, $_x, $_y, $_x+3, $_y+3, $c);
-                        $nswe = L2GeoDataReader::nswe($nswe);
-                        if (!$nswe['n']) imageline($this->out, $_x+0, $_y+0, $_x+2, $_y+0, $warnColor);
-                        if (!$nswe['s']) imageline($this->out, $_x+0, $_y+2, $_x+2, $_y+2, $warnColor);
-                        if (!$nswe['w']) imageline($this->out, $_x+0, $_y+0, $_x+0, $_y+2, $warnColor);
-                        if (!$nswe['e']) imageline($this->out, $_x+2, $_y+0, $_x+2, $_y+2, $warnColor);
+                        $zPos = $cRaw & 0xFFF0;
+                        $nswe = $cRaw & 0x000F;
+                        if ($zPos)
+                        {
+                            $p = $zMulti * ($zPos - $zMin);
+                            if ($nswe < 15)
+                            {
+                                $a = (int)($aRangeBlock*$p) + $aMinBlock;
+                                $r = (int)($rRangeBlock*$p) + $rMinBlock;
+                                $g = (int)($gRangeBlock*$p) + $gMinBlock;
+                                $b = (int)($bRangeBlock*$p) + $bMinBlock;
+                            }
+                            else
+                            {
+                                $a = (int)($aRange*$p) + $aMin;
+                                $r = (int)($rRange*$p) + $rMin;
+                                $g = (int)($gRange*$p) + $gMin;
+                                $b = (int)($bRange*$p) + $bMin;
+                            }
+                            $c =  ($a << 24) + ($r << 16) + ($g << 8) + ($b);
+                            imagesetpixel($this->out, $x, $y, $c);
+                        }
                     }
                 }
-*/
+            }
+            else
+            {
+                for ($x = 0; $x < L2GDI_IMG_SIZE; $x += 1)
+                {
+                    for ($y = 0; $y < L2GDI_IMG_SIZE; $y += 1)
+                    {
+                        $cRaw = imagecolorat($this->raw, $x, $y);
+                        $zPos = $cRaw & 0xFFF0;
+                        if ($zPos)
+                        {
+                            $p = $zMulti * ($zPos - $zMin);
+                            $a = (int)($aRange*$p) + $aMin;
+                            $r = (int)($rRange*$p) + $rMin;
+                            $g = (int)($gRange*$p) + $gMin;
+                            $b = (int)($bRange*$p) + $bMin;
+                            $c = ($a << 24) + ($r << 16) + ($g << 8) + ($b);
+                            imagesetpixel($this->out, $x, $y, $c);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private static function z2color($z, $a=0)
@@ -245,6 +244,7 @@ class L2GeoDataImage
     {
         header('Content-type: image/png');
         imagepng($this->out);
+        imagedestroy($this->raw);
         imagedestroy($this->out);
     }
 
