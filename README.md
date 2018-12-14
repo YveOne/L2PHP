@@ -1,5 +1,9 @@
 # L2PHP
-PHP Scripts for Lineage2
+PHP Util Scripts for Lineage2
+
+L2GDR: L2GeoDataReader
+L2GDI: L2GeoDataImage
+
 
 ![Example 1](https://raw.githubusercontent.com/YveOne/L2PHP/master/example1.png "Example 1")
 ```
